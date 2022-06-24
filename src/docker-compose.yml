@@ -1,6 +1,18 @@
 version: '3.4'
 
 services:
+  discountdb:
+    image: postgres
+    container_name: discountdb
+    restart: always
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin1234
+      - POSTGRES_DB=DiscountDb
+    ports:
+      - "5432:5432" 
+    volumes:
+     - postgres_data:/var/lib/postgresql/data
   catalogdb:
     image: mongo
     container_name: catalogdb
@@ -9,6 +21,12 @@ services:
      - "27017:27017"
     volumes:
      - mongo_data:/data/db
+  basketdb:
+    image: redis:alpine
+    container_name: basketdb
+    restart: always
+    ports:
+     - "6379:6379"
   catalog.api:
     container_name: catalog.api
     image: ${DOCKER_REGISTRY-}catalogapi
@@ -22,5 +40,51 @@ services:
     - catalogdb
     ports:
       - "8000:80"
+  basket.api:
+    image: ${DOCKER_REGISTRY-}basketapi
+    container_name: basket.api
+    build:
+      context: .
+      dockerfile: Services/Basket/Basket.API/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - "CacheSettings:ConnectionString=basketdb:6379"
+      - "GrpcSettings:DiscountUrl=http://discount.grpc"
+    depends_on:
+    - basketdb
+    ports:
+      - "8001:80"
+  discount.api:
+    container_name: discount.api
+    image: ${DOCKER_REGISTRY-}discountapi
+    build:
+      context: .
+      dockerfile: Services/Discount/Discount.API/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - "DatabaseSettings:ConnectionString=Server=discountdb;Port=5432;Database=DiscountDb;User Id=admin;Password=admin1234"
+    depends_on:
+    - discountdb
+    ports:
+      - "8002:80"
+
+  discount.grpc:
+    container_name: discount.grpc
+    image: ${DOCKER_REGISTRY-}discountgrpc
+    build:
+      context: .
+      dockerfile: Services/Discount/Discount.Grpc/Dockerfile
+    depends_on:
+    - discountdb
+    ports:
+      - "8003:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - "DatabaseSettings:ConnectionString=Server=discountdb;Port=5432;Database=DiscountDb;User Id=admin;Password=admin1234"
+
 volumes:
-  mongo_data: 
+  mongo_data:
+  portainer_data:
+  postgres_data:
+
+
