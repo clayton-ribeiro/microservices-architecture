@@ -1,6 +1,15 @@
 version: '3.4'
 
 services:
+  portainer:
+    image: portainer/portainer-ce
+    container_name: portainer
+    restart: always
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data  
   discountdb:
     image: postgres
     container_name: discountdb
